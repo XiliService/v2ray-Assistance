@@ -41,7 +41,7 @@
 
 # دانلود و اجرای اسکریپت برای اولین بار (اپدیت اسکریپت)
 ```bash
-curl -Ls https://raw.githubusercontent.com/Mmdd93/v2ray-assistance/refs/heads/main/node.sh -o /usr/bin/v2 && sudo chmod +x /usr/bin/v2 && v2
+curl -Ls https://raw.githubusercontent.com/XiliService/v2ray-Assistance/refs/heads/main/node.sh -o /usr/bin/v2 && sudo chmod +x /usr/bin/v2 && v2
 ```
 
 # برای اجرای اسکریپت در سری بعد کافیه v2 رو تایپ کنید.
