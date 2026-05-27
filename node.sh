@@ -3671,6 +3671,13 @@ main_menu() {
 		echo -e "${CYAN} 88.${NC} ${CYAN}WSS/WS Reverse tunnel 69learn            ${WHITE}[github.com/69learn/wstunnel]${NC}"
 		echo -e "${CYAN} 89.${NC} ${CYAN}SMITE [GOST,Backhaul,Rathole,Chisel,FRP] WEB UI           ${WHITE}[github.com/zZedix/Smite]${NC}"
 		echo -e "${CYAN} 90.${NC} ${CYAN}WaterWall Reverse tunnel           ${WHITE}[github.com/Ptechgithub/WaterWall-Docs]${NC}"
+		echo -e "${CYAN} 94.${NC} ${CYAN}DNS Tunnel Manager (dnstm)           ${WHITE}[github.com/Net2Share/dnstm]${NC}"
+		echo -e "${CYAN} 95.${NC} ${CYAN}VortexL2 L2TPv3 Ethernet Tunnel  ${WHITE}[github.com/iliya-Developer/VortexL2]${NC}"
+		echo -e "${CYAN} 96.${NC} ${CYAN}Paqet-Tunnel-Manager  ${WHITE}[github.com/behzadea12/Paqet-Tunnel-Manager]${NC}"
+		echo -e "${CYAN} 98.${NC} ${CYAN}DaggerConnect Reverse tunnel  ${WHITE}[github.com/itsFLoKi/daggerConnect]${NC}"
+		echo -e "${CYAN} 99.${NC} ${CYAN}Pahlavi Reverse tunnel  ${WHITE}[github.com/Zehnovik/Pahlavi-tunnel]${NC}"
+		echo -e "${CYAN} 100.${NC} ${CYAN}Ghost-wire Reverse tunnel  ${WHITE}[github.com/FrenchToblerone54/GhostwireInstaller]${NC}"
+		echo -e "${CYAN} 101.${NC} ${CYAN}Paqet-X-Nulled tunnel  ${WHITE}[github.com/MrAminiDev/Paqet-X-Nulled]${NC}"
         echo
         # XUI section - MAGENTA
         echo -e "${MAGENTA} XUI ${NC}"
@@ -3682,7 +3689,8 @@ main_menu() {
         
         # Telegram Bot section - WHITE
         echo -e "${WHITE} TELEGRAM BOT ${NC}"
-        echo -e "${WHITE} 75.${NC} ${WHITE}Mirza Bot Pro VPN Sale ${RED}[Multi]${NC} ${WHITE}[github.com/mahdiMGF2]${NC}"
+		echo -e "${WHITE} 97.${NC} ${WHITE}Mirza Bot Pro VPN Sale (oficial)${RED}[Multi]${NC} ${WHITE}[github.com/mahdiMGF2]${NC}"
+        echo -e "${WHITE} 75.${NC} ${WHITE}Mirza Bot Pro VPN Sale by v2 ${RED}[Multi]${NC} ${WHITE}[github.com/mahdiMGF2]${NC}"
         echo -e "${WHITE} 77.${NC} ${WHITE}mtproto proxy (telegram proxy) ${WHITE}[github.com/seriyps]${NC}"
         echo
         
@@ -3714,6 +3722,9 @@ main_menu() {
         echo -e "${LIGHT_CYAN} 81.${NC} ${LIGHT_CYAN}OV-Panel ${RED}[Multi]${NC}            ${WHITE}[github.com/primeZdev/ov-panel]${NC}"
         echo -e "${LIGHT_CYAN} 82.${NC} ${LIGHT_CYAN}IranGate-OV ${GREEN}[Single]${NC}        ${WHITE}[github.com/amiridev-org]${NC}"
 		echo -e "${LIGHT_CYAN} 84.${NC} ${LIGHT_CYAN}MikroTik (CHR/DOCKER MODE)${NC}    ${WHITE}[github.com/Mmdd93]${NC}"
+		echo -e "${LIGHT_CYAN} 91.${NC} ${LIGHT_CYAN}dnstt${NC}    ${WHITE}[github.com/bugfloyd/dnstt-deploy]${NC}"
+		echo -e "${LIGHT_CYAN} 92.${NC} ${LIGHT_CYAN}Shahan Panel${NC}    ${WHITE}[github.com/HamedAp/ShahanPanel]${NC}"
+		echo -e "${LIGHT_CYAN} 93.${NC} ${LIGHT_CYAN}SlipStream${NC}    ${WHITE}[github.com/mirzaaghazadeh/SlipStreamGUI]${NC}"
         echo
         
         # Panel Backup section - YELLOW
@@ -4117,6 +4128,78 @@ main_menu() {
 				sleep 1
                 curl -Ls https://raw.githubusercontent.com/Ptechgithub/WaterWall-Docs/main/install.sh -o WaterWall.sh
                 sudo bash WaterWall.sh
+                ;;
+			91)
+                echo -e "${YELLOW}dnstt-deploy.sh...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/bugfloyd/dnstt-deploy/main/dnstt-deploy.sh -o dnstt-deploy.sh
+                sudo bash dnstt-deploy.sh
+                ;;
+			92)
+                echo -e "${YELLOW}shahan.sh...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/HamedAp/Ssh-User-management/master/install.sh -o shahan.sh
+                sudo bash shahan.sh
+                ;;
+			93)
+                echo -e "${YELLOW}slipstream-rust...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/AliRezaBeigy/slipstream-rust-deploy/master/slipstream-rust-deploy.sh -o slipstream-rust-deploy.sh
+                sudo bash slipstream-rust-deploy.sh
+                ;;
+				94)
+                echo -e "${YELLOW}DNS Tunnel Manager (dnstm)...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/net2share/dnstm/main/install.sh -o dnstm.sh
+                sudo bash dnstm.sh
+                ;;
+			95)
+                echo -e "${YELLOW} VortexL2 L2TPv3 Ethernet Tunnel Manager...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/iliya-Developer/VortexL2/main/install.sh -o VortexL2.sh
+                sudo bash VortexL2.sh
+				sudo vortexl2
+                ;;
+			96)
+                echo -e "${YELLOW} Paqet-Tunnel-Manager...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/behzadea12/Paqet-Tunnel-Manager/main/paqet-manager.sh -o paqet-manager.sh
+                sudo bash paqet-manager.sh
+                ;;
+			97)
+                echo -e "${YELLOW} mirza-pro.sh...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/mahdiMGF2/mirzabot/main/install.sh -o mirza-pro.sh
+                sudo bash mirza-pro.sh
+                ;;
+				98)
+                echo -e "${YELLOW} DaggerConnect...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/itsFLoKi/DaggerConnect/main/setup.sh -o DaggerConnect.sh
+				chmod +x DaggerConnect.sh
+                sudo bash DaggerConnect.sh
+                ;;
+				99)
+                echo -e "${YELLOW} Pahlavi-tunnel...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/Zehnovik/Pahlavi-tunnel/main/install.sh -o Pahlavi-tunnel.sh
+				chmod +x Pahlavi-tunnel.sh
+                sudo bash Pahlavi-tunnel.sh full
+				sudo pahlavi-tunnel
+                ;;
+			100)
+                echo -e "${YELLOW} Ghost-wire...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/FrenchToblerone54/GhostwireInstaller/main/setup.sh -o Ghost-wire.sh
+				chmod +x Ghost-wire.sh
+                sudo bash Ghost-wire.sh
+                ;;
+			101)
+                echo -e "${YELLOW} Paqet-X-Nulled...${NC}"
+				sleep 1
+                curl -Ls https://raw.githubusercontent.com/MrAminiDev/Paqet-X-Nulled/main/install.sh -o Paqet-X-Nulled.sh
+				chmod +x Paqet-X-Nulled.sh
+                sudo bash Paqet-X-Nulled.sh
                 ;;
             00) 
                 echo -e "${YELLOW}Updating scripts...${NC}"

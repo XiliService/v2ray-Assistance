@@ -23,6 +23,42 @@ else
     gost_version="GOST not installed"
 fi
 
+# Function to create a new GOST core binary
+create_gost_core() {
+    local core_name="$1"
+    local gost_binary="/usr/local/bin/$core_name"
+    
+    # Check if original gost exists
+    if [[ ! -f "/usr/local/bin/gost" ]]; then
+        echo -e "\033[1;31m✗ Original GOST binary not found. Please install GOST first.\033[0m"
+        return 1
+    fi
+    
+    # Check if core already exists
+    if [[ -f "$gost_binary" ]]; then
+        echo -e "\033[1;33m⚠ Using existing GOST core: $core_name\033[0m"
+        return 0
+    fi
+    
+    # Copy the original gost binary
+    echo -e "\033[1;32mCreating new GOST core: $core_name\033[0m"
+    if cp /usr/local/bin/gost "$gost_binary"; then
+        chmod +x "$gost_binary"
+        echo -e "\033[1;32m✓ Successfully created GOST core: $core_name\033[0m"
+        return 0
+    else
+        echo -e "\033[1;31m✗ Failed to create GOST core. Using original.\033[0m"
+        return 1
+    fi
+}
+
+# Function to list all GOST cores
+list_gost_cores() {
+    echo -e "\033[1;34m📋 List of GOST Cores:\033[0m"
+    echo -e "\033[1;33mAvailable cores in /usr/local/bin:\033[0m"
+    ls -la /usr/local/bin/gost* 2>/dev/null | grep -v "\.bak" || echo "No GOST cores found"
+}
+
 # Main Menu Function
 main_menu() {
     while true; do
@@ -34,10 +70,11 @@ main_menu() {
         echo -e "          \033[1;36mReverse GOST\033[0m"
         echo -e "\033[1;32m===================================\033[0m"
         echo -e " \033[1;34m1.\033[0m Install GOST"
-        echo -e " \033[1;34m2.\033[0m rely mode (multi-port) "
+        echo -e " \033[1;34m2.\033[0m relay mode (multi-port) "
         echo -e " \033[1;34m3.\033[0m socks5 mode (multi-port) "
         echo -e " \033[1;34m4.\033[0m Manage Tunnels Services"
-        echo -e " \033[1;34m5.\033[0m Remove GOST"
+        echo -e " \033[1;34m5.\033[0m List GOST Cores"
+        echo -e " \033[1;34m6.\033[0m Remove GOST"
         
         echo -e " \033[1;31m0. Exit\033[0m"
         echo -e "\033[1;32m===================================\033[0m"
@@ -49,8 +86,8 @@ main_menu() {
             2) configure_relay ;;
             3) configure_socks5 ;;
             4) select_service_to_manage ;;
-            5) remove_gost ;;
-            
+            5) list_gost_cores; read -p "Press Enter to continue..." ;;
+            6) remove_gost ;;
             
             0) 
                 echo -e "\033[1;31mExiting... Goodbye!\033[0m"
@@ -64,29 +101,37 @@ main_menu() {
     done
 }
 
-
 configure_relay() {
     echo -e "\033[1;33mIs this the client or server side?\033[0m"
-    echo -e "\033[1;32m1.\033[0m \033[1;36mClient-Side (iran)\033[0m"
-    echo -e "\033[1;32m2.\033[0m \033[1;36mServer-Side (kharej)\033[0m"
-    read -p $'\033[1;33mEnter your choice: \033[0m' side_choice
+    echo -e "\033[1;32m1.\033[0m \033[1;36mClient-Side (Iran)\033[0m"
+    echo -e "\033[1;32m2.\033[0m \033[1;36mServer-Side (Kharej)\033[0m"
+    read -p $'\033[1;33mEnter your choice [1-2]: \033[0m' side_choice
 
     case $side_choice in
         1)
-            # Server-side configuration
+            # Client-side configuration (Iran)
             echo -e "\n\033[1;34m Configure Client-Side (iran)\033[0m"
+
+            # Ask for core name
+            echo -e "\n\033[1;34m📝 Core Configuration:\033[0m"
+            read -p $'\033[1;33mEnter a unique name for this GOST core (e.g., gost-relay1, gost-tunnel2): \033[0m' core_name
+            if [[ -z "$core_name" ]]; then
+                core_name="gost-$(tr -dc 'a-z0-9' < /dev/urandom | head -c 6)"
+                echo -e "\033[1;36mGenerated core name: $core_name\033[0m"
+            fi
+            
+            # Create GOST core
+            if ! create_gost_core "$core_name"; then
+                core_name="gost"  # Fallback to original
+            fi
+            
+            GOST_BINARY="/usr/local/bin/$core_name"
 
             # Prompt the user for a port until a free one is provided
             while true; do
                 read -p $'\033[1;33mEnter server communication port (default: 9001): \033[0m' lport_relay
                 lport_relay=${lport_relay:-9001}
-                
-                #if is_port_used $lport_relay; then
-                   # echo -e "\033[1;31mPort $lport_relay is already in use. Please enter a different port.\033[0m"
-               #else
-                   # echo -e "\033[1;32mPort $lport_relay is available.\033[0m"
-                    break  # Exit the loop if the port is free
-                #fi
+                break
             done
             
             # Ask for the transmission type
@@ -108,10 +153,9 @@ configure_relay() {
             echo -e "\033[1;32m14.\033[0m icmp (ping tunnel)"
             echo -e "\033[1;32m15.\033[0m relay"
             echo -e "\033[1;32m16.\033[0m tcp"
-            read -p $'\033[1;33m? Enter your choice: \033[0m' trans_choice
+            read -p $'\033[1;33m? Enter your choice [tcp]: \033[0m' trans_choice
 
             case $trans_choice in
-
                 1) TRANSMISSION="+ws" ;;
                 2) TRANSMISSION="+wss" ;;
                 3) TRANSMISSION="+grpc" ;;
@@ -131,157 +175,381 @@ configure_relay() {
                 *) echo -e "\033[1;31mInvalid choice! Defaulting to TCP.\033[0m"; TRANSMISSION="+tcp" ;;
             esac
 
+            # Ask about connection stability
+            echo -e "\n\033[1;34m🔧 Connection Stability Settings\033[0m"
+            echo -e "Do you want to configure connection stability options?"
+            echo -e "\033[1;32m1.\033[0m Yes - Configure advanced options"
+            echo -e "\033[1;32m2.\033[0m No - Use default settings"
+            read -p $'\033[1;33mEnter your choice (default: 2): \033[0m' stability_choice
+            stability_choice=${stability_choice:-2}
+            
+            # Set default values
+            TIMEOUT_VALUE="30s"
+            RWTIMEOUT_VALUE="30s"
+            RETRY_VALUE="3"
+            HEARTBEAT_VALUE="30s"
+            
+            # If user wants advanced options
+            if [[ "$stability_choice" == "1" ]]; then
+                echo -e "\n\033[1;34m⚡ Advanced Stability Options\033[0m"
+                
+                # Connection Timeout
+                read -p $'\033[1;33mEnter connection timeout in seconds (default: 30): \033[0m' custom_timeout
+                custom_timeout=${custom_timeout:-30}
+                TIMEOUT_VALUE="${custom_timeout}s"
+                
+                # Read/Write Timeout
+                read -p $'\033[1;33mEnter read/write timeout in seconds (default: 30): \033[0m' custom_rwtimeout
+                custom_rwtimeout=${custom_rwtimeout:-30}
+                RWTIMEOUT_VALUE="${custom_rwtimeout}s"
+                
+                # Retry attempts
+                echo -e "\n\033[1;34mRetry Attempts:\033[0m"
+                echo -e "\033[1;32m1.\033[0m 0 (No retry)"
+                echo -e "\033[1;32m2.\033[0m 3 (Default)"
+                echo -e "\033[1;32m3.\033[0m 5 (High retry)"
+                echo -e "\033[1;32m4.\033[0m -1 (Infinite retry)"
+                read -p $'\033[1;33mEnter your choice [1-4] (default: 2): \033[0m' retry_choice
+                retry_choice=${retry_choice:-2}
+                
+                case $retry_choice in
+                    1) RETRY_VALUE="0" ;;
+                    2) RETRY_VALUE="3" ;;
+                    3) RETRY_VALUE="5" ;;
+                    4) RETRY_VALUE="-1" ;;
+                    *) RETRY_VALUE="3" ;;
+                esac
+                
+                # Heartbeat interval
+                read -p $'\033[1;33mEnter heartbeat interval in seconds (default: 30): \033[0m' custom_heartbeat
+                custom_heartbeat=${custom_heartbeat:-30}
+                HEARTBEAT_VALUE="${custom_heartbeat}s"
+                
+                echo -e "\n\033[1;32m✅ Stability Settings:\033[0m"
+                echo -e "   • Timeout: $TIMEOUT_VALUE"
+                echo -e "   • Read/Write Timeout: $RWTIMEOUT_VALUE"
+                echo -e "   • Retries: $RETRY_VALUE"
+                echo -e "   • Heartbeat: $HEARTBEAT_VALUE"
+            fi
 
-                GOST_OPTIONS="-L relay${TRANSMISSION}://:${lport_relay}?bind=true&keepAlive=true"
+            # Ask about compression
+            echo -e "\n\033[1;34mEnable Compression?\033[0m"
+            echo -e "\033[1;32m1.\033[0m Yes (Recommended for better performance)"
+            echo -e "\033[1;32m2.\033[0m No"
+            read -p $'\033[1;33mEnter your choice (default: 1): \033[0m' compress_choice
+            compress_choice=${compress_choice:-1}
+            
+            if [[ "$compress_choice" == "1" ]]; then
+                COMPRESS_OPTION="compress=true"
+            else
+                COMPRESS_OPTION=""
+            fi
+
+            # Ask about multiplexing
+            echo -e "\n\033[1;34mEnable Multiplexing (mux)?\033[0m"
+            echo -e "\033[1;32m1.\033[0m Yes (Recommended for multiple connections)"
+            echo -e "\033[1;32m2.\033[0m No"
+            read -p $'\033[1;33mEnter your choice (default: 1): \033[0m' mux_choice
+            mux_choice=${mux_choice:-1}
+            
+            if [[ "$mux_choice" == "1" ]]; then
+                MUX_OPTION="mux=true"
+            else
+                MUX_OPTION=""
+            fi
+
+            # Build GOST options with stability parameters
+            GOST_OPTIONS="-L relay${TRANSMISSION}://:${lport_relay}?bind=true"
+            
+            # Add stability options
+            GOST_OPTIONS+="&timeout=${TIMEOUT_VALUE}"
+            GOST_OPTIONS+="&rwTimeout=${RWTIMEOUT_VALUE}"
+            GOST_OPTIONS+="&retries=${RETRY_VALUE}"
+            GOST_OPTIONS+="&heartbeat=${HEARTBEAT_VALUE}"
+            GOST_OPTIONS+="&keepAlive=true"
+            
+            # Add compression if enabled
+            if [[ -n "$COMPRESS_OPTION" ]]; then
+                GOST_OPTIONS+="&${COMPRESS_OPTION}"
+            fi
+            
+            # Add multiplexing if enabled
+            if [[ -n "$MUX_OPTION" ]]; then
+                GOST_OPTIONS+="&${MUX_OPTION}"
+            fi
 
             echo -e "\033[1;32mGenerated GOST options:\033[0m $GOST_OPTIONS"
+            echo -e "\033[1;32mUsing GOST core:\033[0m $core_name"
 
             read -p "Enter a custom name for this service (leave blank for a random name): " service_name
-            [[ -z "$service_name" ]] && service_name=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 6)
+            [[ -z "$service_name" ]] && service_name="relay_client_$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 6)"
 
             echo -e "\033[1;32mCreating Gost service for ${service_name}...\033[0m"
-            create_gost_service "$service_name"
+            create_gost_service "$service_name" "$GOST_BINARY"
             start_service "$service_name"
             read -p "Press Enter to continue..."
             ;;
         
-    2)
-    echo -e "\n\033[1;34mConfigure Server-Side (kharej)\033[0m"
+        2)
+            echo -e "\n\033[1;34mConfigure Server-Side (kharej)\033[0m"
 
-    # Select listen type (TCP/UDP)
-    echo -e "\n\033[1;34mSelect Listen Type:\033[0m"
-    echo -e "\033[1;32m1.\033[0m \033[1;36mTCP mode\033[0m (gRPC, XHTTP, WS, TCP, etc.)"
-    echo -e "\033[1;32m2.\033[0m \033[1;36mUDP mode\033[0m (WireGuard, KCP, Hysteria, QUIC, etc.)"
-    read -p $'\033[1;33mEnter listen transmission type: \033[0m' listen_choice
+            # Ask for core name
+            echo -e "\n\033[1;34m📝 Core Configuration:\033[0m"
+            read -p $'\033[1;33mEnter a unique name for this GOST core (e.g., gost-relay1, gost-tunnel2): \033[0m' core_name
+            if [[ -z "$core_name" ]]; then
+                core_name="gost-$(tr -dc 'a-z0-9' < /dev/urandom | head -c 6)"
+                echo -e "\033[1;36mGenerated core name: $core_name\033[0m"
+            fi
+            
+            # Create GOST core
+            if ! create_gost_core "$core_name"; then
+                core_name="gost"  # Fallback to original
+            fi
+            
+            GOST_BINARY="/usr/local/bin/$core_name"
 
-    case $listen_choice in
-        1) LISTEN_TRANSMISSION="rtcp" ;;
-        2) LISTEN_TRANSMISSION="rudp" ;;
-        *) echo -e "\033[1;31mInvalid choice! Defaulting to TCP.\033[0m"; LISTEN_TRANSMISSION="tcp" ;;
-    esac
+            # Select listen type (TCP/UDP)
+            echo -e "\n\033[1;34mSelect Listen Type:\033[0m"
+            echo -e "\033[1;32m1.\033[0m \033[1;36mTCP mode\033[0m (gRPC, XHTTP, WS, TCP, etc.)"
+            echo -e "\033[1;32m2.\033[0m \033[1;36mUDP mode\033[0m (WireGuard, KCP, Hysteria, QUIC, etc.)"
+            read -p $'\033[1;33mEnter listen transmission type: \033[0m' listen_choice
 
-    # Inbound port input
-    while true; do
-        read -p $'\033[1;33mEnter inbound (config) port: \033[0m' config_port
-        if [[ "$config_port" =~ ^[0-9]+$ ]]; then
-            break
-        else
-            echo -e "\033[1;31mInvalid port: $config_port. Please enter a valid numeric port.\033[0m"
-        fi
-    done
+            case $listen_choice in
+                1) LISTEN_TRANSMISSION="rtcp" ;;
+                2) LISTEN_TRANSMISSION="rudp" ;;
+                *) echo -e "\033[1;31mInvalid choice! Defaulting to TCP.\033[0m"; LISTEN_TRANSMISSION="tcp" ;;
+            esac
 
-    # Listen port input
-    while true; do
-        read -p $'\033[1;33mEnter listen port: \033[0m' listen_port
-        if [[ "$listen_port" =~ ^[0-9]+$ ]]; then
-            break
-        else
-            echo -e "\033[1;31mInvalid port: $listen_port. Please enter a valid numeric port.\033[0m"
-        fi
-    done
+            # Inbound port input
+            while true; do
+                read -p $'\033[1;33mEnter inbound (config) port: \033[0m' config_port
+                if [[ "$config_port" =~ ^[0-9]+$ ]]; then
+                    break
+                else
+                    echo -e "\033[1;31mInvalid port: $config_port. Please enter a valid numeric port.\033[0m"
+                fi
+            done
 
-    echo -e "\033[1;32mInbound (config) port set to: $config_port\033[0m"
-    echo -e "\033[1;32mListen port set to: $listen_port\033[0m"
+            # Listen port input
+            while true; do
+                read -p $'\033[1;33mEnter listen port: \033[0m' listen_port
+                if [[ "$listen_port" =~ ^[0-9]+$ ]]; then
+                    break
+                else
+                    echo -e "\033[1;31mInvalid port: $listen_port. Please enter a valid numeric port.\033[0m"
+                fi
+            done
 
-    # Remote server IP
-    read -p $'\033[1;33mEnter remote server IP (iran): \033[0m' relay_ip
-    [[ $relay_ip =~ : ]] && relay_ip="[$relay_ip]"
-    echo -e "\033[1;36mFormatted IP:\033[0m $relay_ip"
+            echo -e "\033[1;32mInbound (config) port set to: $config_port\033[0m"
+            echo -e "\033[1;32mListen port set to: $listen_port\033[0m"
 
-    # Remote server port
-    while true; do
-        read -p $'\033[1;33mEnter server communication port (default: 9001): \033[0m' relay_port
-        relay_port=${relay_port:-9001}
-        if [[ "$relay_port" =~ ^[0-9]+$ ]]; then
-            break
-        else
-            echo -e "\033[1;31mInvalid port. Please enter a valid numeric port.\033[0m"
-        fi
-    done
+            # Remote server IP
+            read -p $'\033[1;33mEnter remote server IP (iran): \033[0m' relay_ip
+            [[ $relay_ip =~ : ]] && relay_ip="[$relay_ip]"
+            echo -e "\033[1;36mFormatted IP:\033[0m $relay_ip"
 
-    # Relay transmission type
-    echo -e "\n\033[1;34mSelect Relay Transmission Type:\033[0m"
-    echo -e "\033[1;32m1.\033[0m WS (WebSocket)"
-    echo -e "\033[1;32m2.\033[0m WSS (WebSocket Secure)"
-    echo -e "\033[1;32m3.\033[0m gRPC"
-    echo -e "\033[1;32m4.\033[0m h2 (HTTP/2)"
-    echo -e "\033[1;32m5.\033[0m SSH"
-    echo -e "\033[1;32m6.\033[0m TLS"
-    echo -e "\033[1;32m7.\033[0m MWSS (Multiplex Websocket)"
-    echo -e "\033[1;32m8.\033[0m h2c (HTTP2 Cleartext)"
-    echo -e "\033[1;32m9.\033[0m OBFS4 (OBFS4)"
-    echo -e "\033[1;32m10.\033[0m oHTTP (HTTP Obfuscation)"
-    echo -e "\033[1;32m11.\033[0m oTLS (TLS Obfuscation)"
-    echo -e "\033[1;32m12.\033[0m mTLS (Multiplex TLS)"
-    echo -e "\033[1;32m13.\033[0m MWS (Multiplex Websocket)"
-    echo -e "\033[1;32m14.\033[0m icmp (ping tunnel)"
-    echo -e "\033[1;32m15.\033[0m relay"
-    echo -e "\033[1;32m16.\033[0m tcp"
-    read -p $'\033[1;33mEnter your choice for relay transmission type: \033[0m' trans_choice
+            # Remote server port
+            while true; do
+                read -p $'\033[1;33mEnter server communication port (default: 9001): \033[0m' relay_port
+                relay_port=${relay_port:-9001}
+                if [[ "$relay_port" =~ ^[0-9]+$ ]]; then
+                    break
+                else
+                    echo -e "\033[1;31mInvalid port. Please enter a valid numeric port.\033[0m"
+                fi
+            done
 
-    case $trans_choice in
-        1)  TRANSMISSION="+ws" ;;
-        2)  TRANSMISSION="+wss" ;;
-        3)  TRANSMISSION="+grpc" ;;
-        4)  TRANSMISSION="+h2" ;;
-        5)  TRANSMISSION="+ssh" ;;
-        6)  TRANSMISSION="+tls" ;;
-        7)  TRANSMISSION="+mwss" ;;
-        8)  TRANSMISSION="+h2c" ;;
-        9)  TRANSMISSION="+obfs4" ;;
-        10) TRANSMISSION="+ohttp" ;;
-        11) TRANSMISSION="+otls" ;;
-        12) TRANSMISSION="+mtls" ;;
-        13) TRANSMISSION="+mws" ;;
-        14) TRANSMISSION="+icmp" ;;
-        15) TRANSMISSION="" ;;
-        16) TRANSMISSION="+tcp" ;;
-        *)  echo -e "\033[1;31mInvalid choice! Defaulting to TCP.\033[0m"; TRANSMISSION="+tcp" ;;
-    esac
+            # Relay transmission type
+            echo -e "\n\033[1;34mSelect Relay Transmission Type:\033[0m"
+            echo -e "\033[1;32m1.\033[0m WS (WebSocket)"
+            echo -e "\033[1;32m2.\033[0m WSS (WebSocket Secure)"
+            echo -e "\033[1;32m3.\033[0m gRPC"
+            echo -e "\033[1;32m4.\033[0m h2 (HTTP/2)"
+            echo -e "\033[1;32m5.\033[0m SSH"
+            echo -e "\033[1;32m6.\033[0m TLS"
+            echo -e "\033[1;32m7.\033[0m MWSS (Multiplex Websocket)"
+            echo -e "\033[1;32m8.\033[0m h2c (HTTP2 Cleartext)"
+            echo -e "\033[1;32m9.\033[0m OBFS4 (OBFS4)"
+            echo -e "\033[1;32m10.\033[0m oHTTP (HTTP Obfuscation)"
+            echo -e "\033[1;32m11.\033[0m oTLS (TLS Obfuscation)"
+            echo -e "\033[1;32m12.\033[0m mTLS (Multiplex TLS)"
+            echo -e "\033[1;32m13.\033[0m MWS (Multiplex Websocket)"
+            echo -e "\033[1;32m14.\033[0m icmp (ping tunnel)"
+            echo -e "\033[1;32m15.\033[0m relay"
+            echo -e "\033[1;32m16.\033[0m tcp"
+            read -p $'\033[1;33mEnter your choice [tcp]: \033[0m' trans_choice
 
-    # Construct GOST options
-    GOST_OPTIONS=" -L ${LISTEN_TRANSMISSION}://:${listen_port}/127.0.0.1:${config_port}?keepAlive=true"
-    GOST_OPTIONS+=" -F relay${TRANSMISSION}://${relay_ip}:${relay_port}"
+            case $trans_choice in
+                1)  TRANSMISSION="+ws" ;;
+                2)  TRANSMISSION="+wss" ;;
+                3)  TRANSMISSION="+grpc" ;;
+                4)  TRANSMISSION="+h2" ;;
+                5)  TRANSMISSION="+ssh" ;;
+                6)  TRANSMISSION="+tls" ;;
+                7)  TRANSMISSION="+mwss" ;;
+                8)  TRANSMISSION="+h2c" ;;
+                9)  TRANSMISSION="+obfs4" ;;
+                10) TRANSMISSION="+ohttp" ;;
+                11) TRANSMISSION="+otls" ;;
+                12) TRANSMISSION="+mtls" ;;
+                13) TRANSMISSION="+mws" ;;
+                14) TRANSMISSION="+icmp" ;;
+                15) TRANSMISSION="" ;;
+                16) TRANSMISSION="+tcp" ;;
+                *)  echo -e "\033[1;31mInvalid choice! Defaulting to TCP.\033[0m"; TRANSMISSION="+tcp" ;;
+            esac
 
-    echo -e "\033[1;32mGenerated GOST options:\033[0m $GOST_OPTIONS"
+            # Ask about connection stability for server side
+            echo -e "\n\033[1;34m🔧 Connection Stability Settings\033[0m"
+            echo -e "Do you want to configure connection stability options?"
+            echo -e "\033[1;32m1.\033[0m Yes - Configure advanced options"
+            echo -e "\033[1;32m2.\033[0m No - Use default settings"
+            read -p $'\033[1;33mEnter your choice (default: 2): \033[0m' stability_choice
+            stability_choice=${stability_choice:-2}
+            
+            # Set default values
+            TIMEOUT_VALUE="30s"
+            RWTIMEOUT_VALUE="30s"
+            RETRY_VALUE="3"
+            HEARTBEAT_VALUE="30s"
+            
+            # If user wants advanced options
+            if [[ "$stability_choice" == "1" ]]; then
+                echo -e "\n\033[1;34m⚡ Advanced Stability Options\033[0m"
+                
+                # Connection Timeout
+                read -p $'\033[1;33mEnter connection timeout in seconds (default: 30): \033[0m' custom_timeout
+                custom_timeout=${custom_timeout:-30}
+                TIMEOUT_VALUE="${custom_timeout}s"
+                
+                # Read/Write Timeout
+                read -p $'\033[1;33mEnter read/write timeout in seconds (default: 30): \033[0m' custom_rwtimeout
+                custom_rwtimeout=${custom_rwtimeout:-30}
+                RWTIMEOUT_VALUE="${custom_rwtimeout}s"
+                
+                # Retry attempts
+                echo -e "\n\033[1;34mRetry Attempts:\033[0m"
+                echo -e "\033[1;32m1.\033[0m 0 (No retry)"
+                echo -e "\033[1;32m2.\033[0m 3 (Default)"
+                echo -e "\033[1;32m3.\033[0m 5 (High retry)"
+                echo -e "\033[1;32m4.\033[0m -1 (Infinite retry)"
+                read -p $'\033[1;33mEnter your choice [1-4] (default: 2): \033[0m' retry_choice
+                retry_choice=${retry_choice:-2}
+                
+                case $retry_choice in
+                    1) RETRY_VALUE="0" ;;
+                    2) RETRY_VALUE="3" ;;
+                    3) RETRY_VALUE="5" ;;
+                    4) RETRY_VALUE="-1" ;;
+                    *) RETRY_VALUE="3" ;;
+                esac
+                
+                # Heartbeat interval
+                read -p $'\033[1;33mEnter heartbeat interval in seconds (default: 30): \033[0m' custom_heartbeat
+                custom_heartbeat=${custom_heartbeat:-30}
+                HEARTBEAT_VALUE="${custom_heartbeat}s"
+                
+                echo -e "\n\033[1;32m✅ Stability Settings:\033[0m"
+                echo -e "   • Timeout: $TIMEOUT_VALUE"
+                echo -e "   • Read/Write Timeout: $RWTIMEOUT_VALUE"
+                echo -e "   • Retries: $RETRY_VALUE"
+                echo -e "   • Heartbeat: $HEARTBEAT_VALUE"
+            fi
 
-    read -p "Enter a custom name for this service (leave blank for a random name): " service_name
-    [[ -z "$service_name" ]] && service_name=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 6)
+            # Ask about compression for relay side
+            echo -e "\n\033[1;34mEnable Compression for relay?\033[0m"
+            echo -e "\033[1;32m1.\033[0m Yes (Recommended for better performance)"
+            echo -e "\033[1;32m2.\033[0m No"
+            read -p $'\033[1;33mEnter your choice (default: 1): \033[0m' compress_choice
+            compress_choice=${compress_choice:-1}
+            
+            # Ask about multiplexing for relay side
+            echo -e "\n\033[1;34mEnable Multiplexing (mux) for relay?\033[0m"
+            echo -e "\033[1;32m1.\033[0m Yes (Recommended for multiple connections)"
+            echo -e "\033[1;32m2.\033[0m No"
+            read -p $'\033[1;33mEnter your choice (default: 1): \033[0m' mux_choice
+            mux_choice=${mux_choice:-1}
 
-    echo -e "\033[1;32mCreating Gost service for ${service_name}...\033[0m"
-    create_gost_service "$service_name"
-    start_service "$service_name"
+            # Construct GOST options for listen side (first -L)
+            LISTEN_OPTIONS="${LISTEN_TRANSMISSION}://:${listen_port}/127.0.0.1:${config_port}"
+            
+            # Construct GOST options for forward side (second -F)
+            FORWARD_OPTIONS="relay${TRANSMISSION}://${relay_ip}:${relay_port}"
+            
+            # Build parameters for forward side
+            FORWARD_PARAMS=""
+            if [[ "$compress_choice" == "1" ]]; then
+                FORWARD_PARAMS+="compress=true"
+            fi
+            
+            if [[ "$mux_choice" == "1" ]]; then
+                if [[ -n "$FORWARD_PARAMS" ]]; then
+                    FORWARD_PARAMS+="&"
+                fi
+                FORWARD_PARAMS+="mux=true"
+            fi
+            
+            # Add stability options to forward side
+            if [[ -n "$FORWARD_PARAMS" ]]; then
+                FORWARD_PARAMS+="&"
+            fi
+            FORWARD_PARAMS+="timeout=${TIMEOUT_VALUE}"
+            FORWARD_PARAMS+="&rwTimeout=${RWTIMEOUT_VALUE}"
+            FORWARD_PARAMS+="&retries=${RETRY_VALUE}"
+            FORWARD_PARAMS+="&heartbeat=${HEARTBEAT_VALUE}"
+            
+            # Combine all options
+            GOST_OPTIONS="-L $LISTEN_OPTIONS -F $FORWARD_OPTIONS?$FORWARD_PARAMS"
 
-    read -p "Press Enter to continue..."
-    ;;
-*)
-    echo -e "\033[1;31mInvalid choice! Exiting.\033[0m"
-    ;;
+            echo -e "\033[1;32mGenerated GOST options:\033[0m $GOST_OPTIONS"
+            echo -e "\033[1;32mUsing GOST core:\033[0m $core_name"
 
+            read -p "Enter a custom name for this service (leave blank for a random name): " service_name
+            [[ -z "$service_name" ]] && service_name="relay_server_$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 6)"
+
+            echo -e "\033[1;32mCreating Gost service for ${service_name}...\033[0m"
+            create_gost_service "$service_name" "$GOST_BINARY"
+            start_service "$service_name"
+
+            read -p "Press Enter to continue..."
+            ;;
+        *)
+            echo -e "\033[1;31mInvalid choice! Exiting.\033[0m"
+            ;;
     esac
 }
+
 configure_socks5() {
     echo -e "\033[1;33mIs this the client or server side?\033[0m"
-    echo -e "\033[1;32m1.\033[0m \033[1;36mClient-Side (iran)\033[0m"
-    echo -e "\033[1;32m2.\033[0m \033[1;36mServer-Side (kharej)\033[0m"
+    echo -e "\033[1;32m1.\033[0m \033[1;36mClient-Side (Iran)\033[0m"
+    echo -e "\033[1;32m2.\033[0m \033[1;36mServer-Side (Kharej)\033[0m"
     read -p $'\033[1;33mEnter your choice: \033[0m' side_choice
 
     case $side_choice in
         1)
-            # Server-side configuration
+            # Client-side configuration (Iran)
             echo -e "\n\033[1;34m Configure Client-Side (iran)\033[0m"
 
-            # Prompt the user for a port until a free one is provided
+            # Ask for core name
+            echo -e "\n\033[1;34m📝 Core Configuration:\033[0m"
+            read -p $'\033[1;33mEnter a unique name for this GOST core (e.g., gost-socks5-1, gost-socks5-2): \033[0m' core_name
+            if [[ -z "$core_name" ]]; then
+                core_name="gost-$(tr -dc 'a-z0-9' < /dev/urandom | head -c 6)"
+                echo -e "\033[1;36mGenerated core name: $core_name\033[0m"
+            fi
+            
+            # Create GOST core
+            if ! create_gost_core "$core_name"; then
+                core_name="gost"  # Fallback to original
+            fi
+            
+            GOST_BINARY="/usr/local/bin/$core_name"
+
+            # Prompt the user for a port
             while true; do
                 read -p $'\033[1;33mEnter server communication port (default: 9001): \033[0m' lport_socks5
                 lport_socks5=${lport_socks5:-9001}
-                
-                #if is_port_used $lport_socks5; then
-                   # echo -e "\033[1;31mPort $lport_socks5 is already in use. Please enter a different port.\033[0m"
-               #else
-                   # echo -e "\033[1;32mPort $lport_socks5 is available.\033[0m"
-                    break  # Exit the loop if the port is free
-                #fi
+                break
             done
             
             # Ask for the transmission type
@@ -301,12 +569,11 @@ configure_socks5() {
             echo -e "\033[1;32m12.\033[0m mtls (Multiplex TLS)"
             echo -e "\033[1;32m13.\033[0m mws (Multiplex Websocket)"
             echo -e "\033[1;32m14.\033[0m icmp (ping tunnel)"
-            echo -e "\033[1;32m15.\033[0m relay"
+            echo -e "\033[1;32m15.\033[0m socks5"
             echo -e "\033[1;32m16.\033[0m tcp"
-            read -p $'\033[1;33m? Enter your choice: \033[0m' trans_choice
+            read -p $'\033[1;33m? Enter your choice [tcp]: \033[0m' trans_choice
 
             case $trans_choice in
-
                 1) TRANSMISSION="+ws" ;;
                 2) TRANSMISSION="+wss" ;;
                 3) TRANSMISSION="+grpc" ;;
@@ -326,127 +593,333 @@ configure_socks5() {
                 *) echo -e "\033[1;31mInvalid choice! Defaulting to TCP.\033[0m"; TRANSMISSION="+tcp" ;;
             esac
 
+            # Ask about connection stability
+            echo -e "\n\033[1;34m🔧 Connection Stability Settings\033[0m"
+            echo -e "Do you want to configure connection stability options?"
+            echo -e "\033[1;32m1.\033[0m Yes - Configure advanced options"
+            echo -e "\033[1;32m2.\033[0m No - Use default settings"
+            read -p $'\033[1;33mEnter your choice (default: 2): \033[0m' stability_choice
+            stability_choice=${stability_choice:-2}
+            
+            # Set default values
+            TIMEOUT_VALUE="30s"
+            RWTIMEOUT_VALUE="30s"
+            RETRY_VALUE="3"
+            HEARTBEAT_VALUE="30s"
+            
+            # If user wants advanced options
+            if [[ "$stability_choice" == "1" ]]; then
+                echo -e "\n\033[1;34m⚡ Advanced Stability Options\033[0m"
+                
+                # Connection Timeout
+                read -p $'\033[1;33mEnter connection timeout in seconds (default: 30): \033[0m' custom_timeout
+                custom_timeout=${custom_timeout:-30}
+                TIMEOUT_VALUE="${custom_timeout}s"
+                
+                # Read/Write Timeout
+                read -p $'\033[1;33mEnter read/write timeout in seconds (default: 30): \033[0m' custom_rwtimeout
+                custom_rwtimeout=${custom_rwtimeout:-30}
+                RWTIMEOUT_VALUE="${custom_rwtimeout}s"
+                
+                # Retry attempts
+                echo -e "\n\033[1;34mRetry Attempts:\033[0m"
+                echo -e "\033[1;32m1.\033[0m 0 (No retry)"
+                echo -e "\033[1;32m2.\033[0m 3 (Default)"
+                echo -e "\033[1;32m3.\033[0m 5 (High retry)"
+                echo -e "\033[1;32m4.\033[0m -1 (Infinite retry)"
+                read -p $'\033[1;33mEnter your choice [1-4] (default: 2): \033[0m' retry_choice
+                retry_choice=${retry_choice:-2}
+                
+                case $retry_choice in
+                    1) RETRY_VALUE="0" ;;
+                    2) RETRY_VALUE="3" ;;
+                    3) RETRY_VALUE="5" ;;
+                    4) RETRY_VALUE="-1" ;;
+                    *) RETRY_VALUE="3" ;;
+                esac
+                
+                # Heartbeat interval
+                read -p $'\033[1;33mEnter heartbeat interval in seconds (default: 30): \033[0m' custom_heartbeat
+                custom_heartbeat=${custom_heartbeat:-30}
+                HEARTBEAT_VALUE="${custom_heartbeat}s"
+                
+                echo -e "\n\033[1;32m✅ Stability Settings:\033[0m"
+                echo -e "   • Timeout: $TIMEOUT_VALUE"
+                echo -e "   • Read/Write Timeout: $RWTIMEOUT_VALUE"
+                echo -e "   • Retries: $RETRY_VALUE"
+                echo -e "   • Heartbeat: $HEARTBEAT_VALUE"
+            fi
 
-                GOST_OPTIONS="-L socks5${TRANSMISSION}://:${lport_socks5}?bind=true&keepAlive=true"
+            # Ask about compression
+            echo -e "\n\033[1;34mEnable Compression?\033[0m"
+            echo -e "\033[1;32m1.\033[0m Yes (Recommended for better performance)"
+            echo -e "\033[1;32m2.\033[0m No"
+            read -p $'\033[1;33mEnter your choice (default: 1): \033[0m' compress_choice
+            compress_choice=${compress_choice:-1}
+            
+            if [[ "$compress_choice" == "1" ]]; then
+                COMPRESS_OPTION="compress=true"
+            else
+                COMPRESS_OPTION=""
+            fi
+
+            # Ask about multiplexing
+            echo -e "\n\033[1;34mEnable Multiplexing (mux)?\033[0m"
+            echo -e "\033[1;32m1.\033[0m Yes (Recommended for multiple connections)"
+            echo -e "\033[1;32m2.\033[0m No"
+            read -p $'\033[1;33mEnter your choice (default: 1): \033[0m' mux_choice
+            mux_choice=${mux_choice:-1}
+            
+            if [[ "$mux_choice" == "1" ]]; then
+                MUX_OPTION="mux=true"
+            else
+                MUX_OPTION=""
+            fi
+
+            # Build GOST options with stability parameters
+            GOST_OPTIONS="-L socks5${TRANSMISSION}://:${lport_socks5}?bind=true"
+            
+            # Add stability options
+            GOST_OPTIONS+="&timeout=${TIMEOUT_VALUE}"
+            GOST_OPTIONS+="&rwTimeout=${RWTIMEOUT_VALUE}"
+            GOST_OPTIONS+="&retries=${RETRY_VALUE}"
+            GOST_OPTIONS+="&heartbeat=${HEARTBEAT_VALUE}"
+            GOST_OPTIONS+="&keepAlive=true"
+            
+            # Add compression if enabled
+            if [[ -n "$COMPRESS_OPTION" ]]; then
+                GOST_OPTIONS+="&${COMPRESS_OPTION}"
+            fi
+            
+            # Add multiplexing if enabled
+            if [[ -n "$MUX_OPTION" ]]; then
+                GOST_OPTIONS+="&${MUX_OPTION}"
+            fi
 
             echo -e "\033[1;32mGenerated GOST options:\033[0m $GOST_OPTIONS"
+            echo -e "\033[1;32mUsing GOST core:\033[0m $core_name"
 
             read -p "Enter a custom name for this service (leave blank for a random name): " service_name
-            [[ -z "$service_name" ]] && service_name=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 6)
+            [[ -z "$service_name" ]] && service_name="socks5_client_$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 6)"
 
             echo -e "\033[1;32mCreating Gost service for ${service_name}...\033[0m"
-            create_gost_service "$service_name"
+            create_gost_service "$service_name" "$GOST_BINARY"
             start_service "$service_name"
             read -p "Press Enter to continue..."
             ;;
         
-       2)
-    echo -e "\n\033[1;34mConfigure Server-Side (kharej)\033[0m"
+        2)
+            echo -e "\n\033[1;34mConfigure Server-Side (kharej)\033[0m"
 
-    # Select Listen Type (TCP/UDP)
-    echo -e "\n\033[1;34mSelect Listen Type:\033[0m"
-    echo -e "\033[1;32m1.\033[0m \033[1;36mTCP mode\033[0m (gRPC, XHTTP, WS, TCP, etc.)"
-    echo -e "\033[1;32m2.\033[0m \033[1;36mUDP mode\033[0m (WireGuard, KCP, Hysteria, QUIC, etc.)"
-    read -p $'\033[1;33mEnter listen transmission type: \033[0m' listen_choice
+            # Ask for core name
+            echo -e "\n\033[1;34m📝 Core Configuration:\033[0m"
+            read -p $'\033[1;33mEnter a unique name for this GOST core (e.g., gost-socks5-1, gost-socks5-2): \033[0m' core_name
+            if [[ -z "$core_name" ]]; then
+                core_name="gost-$(tr -dc 'a-z0-9' < /dev/urandom | head -c 6)"
+                echo -e "\033[1;36mGenerated core name: $core_name\033[0m"
+            fi
+            
+            # Create GOST core
+            if ! create_gost_core "$core_name"; then
+                core_name="gost"  # Fallback to original
+            fi
+            
+            GOST_BINARY="/usr/local/bin/$core_name"
 
-    case $listen_choice in
-        1) LISTEN_TRANSMISSION="rtcp" ;;
-        2) LISTEN_TRANSMISSION="rudp" ;;
-        *) echo -e "\033[1;31mInvalid choice! Defaulting to TCP.\033[0m"; LISTEN_TRANSMISSION="tcp" ;;
-    esac
+            # Select Listen Type (TCP/UDP)
+            echo -e "\n\033[1;34mSelect Listen Type:\033[0m"
+            echo -e "\033[1;32m1.\033[0m \033[1;36mTCP mode\033[0m (gRPC, XHTTP, WS, TCP, etc.)"
+            echo -e "\033[1;32m2.\033[0m \033[1;36mUDP mode\033[0m (WireGuard, KCP, Hysteria, QUIC, etc.)"
+            read -p $'\033[1;33mEnter listen transmission type: \033[0m' listen_choice
 
-    # Inbound port input
-    while true; do
-        read -p $'\033[1;33mEnter inbound (config) port: \033[0m' config_port
-        if [[ "$config_port" =~ ^[0-9]+$ ]]; then
-            break
-        else
-            echo -e "\033[1;31mInvalid port. Please enter a numeric value.\033[0m"
-        fi
-    done
+            case $listen_choice in
+                1) LISTEN_TRANSMISSION="rtcp" ;;
+                2) LISTEN_TRANSMISSION="rudp" ;;
+                *) echo -e "\033[1;31mInvalid choice! Defaulting to TCP.\033[0m"; LISTEN_TRANSMISSION="tcp" ;;
+            esac
 
-    # Listen port input
-    while true; do
-        read -p $'\033[1;33mEnter listen port: \033[0m' listen_port
-        if [[ "$listen_port" =~ ^[0-9]+$ ]]; then
-            break
-        else
-            echo -e "\033[1;31mInvalid port. Please enter a numeric value.\033[0m"
-        fi
-    done
+            # Inbound port input
+            while true; do
+                read -p $'\033[1;33mEnter inbound (config) port: \033[0m' config_port
+                if [[ "$config_port" =~ ^[0-9]+$ ]]; then
+                    break
+                else
+                    echo -e "\033[1;31mInvalid port. Please enter a numeric value.\033[0m"
+                fi
+            done
 
-    echo -e "\033[1;32mInbound (config) port set to: $config_port\033[0m"
-    echo -e "\033[1;32mListen port set to: $listen_port\033[0m"
+            # Listen port input
+            while true; do
+                read -p $'\033[1;33mEnter listen port: \033[0m' listen_port
+                if [[ "$listen_port" =~ ^[0-9]+$ ]]; then
+                    break
+                else
+                    echo -e "\033[1;31mInvalid port. Please enter a numeric value.\033[0m"
+                fi
+            done
 
-    # Remote server IP input
-    read -p $'\033[1;33mEnter remote server IP (iran): \033[0m' socks5_ip
-    [[ "$socks5_ip" =~ : ]] && socks5_ip="[$socks5_ip]"
-    echo -e "\033[1;36mFormatted IP:\033[0m $socks5_ip"
+            echo -e "\033[1;32mInbound (config) port set to: $config_port\033[0m"
+            echo -e "\033[1;32mListen port set to: $listen_port\033[0m"
 
-    # Server communication port input
-    while true; do
-        read -p $'\033[1;33mEnter server communication port (default: 9001): \033[0m' socks5_port
-        socks5_port=${socks5_port:-9001}
-        break
-    done
+            # Remote server IP input
+            read -p $'\033[1;33mEnter remote server IP (iran): \033[0m' socks5_ip
+            [[ "$socks5_ip" =~ : ]] && socks5_ip="[$socks5_ip]"
+            echo -e "\033[1;36mFormatted IP:\033[0m $socks5_ip"
 
-    # Select socks5 Transmission Type
-    echo -e "\n\033[1;34mSelect socks5 Transmission Type:\033[0m"
-    echo -e "\033[1;32m1.\033[0m WS (WebSocket)"
-    echo -e "\033[1;32m2.\033[0m WSS (WebSocket Secure)"
-    echo -e "\033[1;32m3.\033[0m gRPC"
-    echo -e "\033[1;32m4.\033[0m h2 (HTTP/2)"
-    echo -e "\033[1;32m5.\033[0m SSH"
-    echo -e "\033[1;32m6.\033[0m TLS"
-    echo -e "\033[1;32m7.\033[0m MWSS (Multiplex Websocket)"
-    echo -e "\033[1;32m8.\033[0m h2c (HTTP2 Cleartext)"
-    echo -e "\033[1;32m9.\033[0m OBFS4 (OBFS4)"
-    echo -e "\033[1;32m10.\033[0m oHTTP (HTTP Obfuscation)"
-    echo -e "\033[1;32m11.\033[0m oTLS (TLS Obfuscation)"
-    echo -e "\033[1;32m12.\033[0m mTLS (Multiplex TLS)"
-    echo -e "\033[1;32m13.\033[0m MWS (Multiplex Websocket)"
-    echo -e "\033[1;32m14.\033[0m icmp (ping tunnel)"
-    echo -e "\033[1;32m15.\033[0m socks5"
-    echo -e "\033[1;32m16.\033[0m tcp"
+            # Server communication port input
+            while true; do
+                read -p $'\033[1;33mEnter server communication port (default: 9001): \033[0m' socks5_port
+                socks5_port=${socks5_port:-9001}
+                break
+            done
 
-    read -p $'\033[1;33mEnter your choice for socks5 transmission type: \033[0m' trans_choice
-    case $trans_choice in
-        1) TRANSMISSION="+ws" ;;
-        2) TRANSMISSION="+wss" ;;
-        3) TRANSMISSION="+grpc" ;;
-        4) TRANSMISSION="+h2" ;;
-        5) TRANSMISSION="+ssh" ;;
-        6) TRANSMISSION="+tls" ;;
-        7) TRANSMISSION="+mwss" ;;
-        8) TRANSMISSION="+h2c" ;;
-        9) TRANSMISSION="+obfs4" ;;
-        10) TRANSMISSION="+ohttp" ;;
-        11) TRANSMISSION="+otls" ;;
-        12) TRANSMISSION="+mtls" ;;
-        13) TRANSMISSION="+mws" ;;
-        14) TRANSMISSION="+icmp" ;;
-        15) TRANSMISSION="" ;;
-        16) TRANSMISSION="+tcp" ;;
-        *) echo -e "\033[1;31mInvalid choice! Defaulting to TCP.\033[0m"; TRANSMISSION="+tcp" ;;
-    esac
+            # Select socks5 Transmission Type
+            echo -e "\n\033[1;34mSelect socks5 Transmission Type:\033[0m"
+            echo -e "\033[1;32m1.\033[0m WS (WebSocket)"
+            echo -e "\033[1;32m2.\033[0m WSS (WebSocket Secure)"
+            echo -e "\033[1;32m3.\033[0m gRPC"
+            echo -e "\033[1;32m4.\033[0m h2 (HTTP/2)"
+            echo -e "\033[1;32m5.\033[0m SSH"
+            echo -e "\033[1;32m6.\033[0m TLS"
+            echo -e "\033[1;32m7.\033[0m MWSS (Multiplex Websocket)"
+            echo -e "\033[1;32m8.\033[0m h2c (HTTP2 Cleartext)"
+            echo -e "\033[1;32m9.\033[0m OBFS4 (OBFS4)"
+            echo -e "\033[1;32m10.\033[0m oHTTP (HTTP Obfuscation)"
+            echo -e "\033[1;32m11.\033[0m oTLS (TLS Obfuscation)"
+            echo -e "\033[1;32m12.\033[0m mTLS (Multiplex TLS)"
+            echo -e "\033[1;32m13.\033[0m MWS (Multiplex Websocket)"
+            echo -e "\033[1;32m14.\033[0m icmp (ping tunnel)"
+            echo -e "\033[1;32m15.\033[0m socks5"
+            echo -e "\033[1;32m16.\033[0m tcp"
 
-    # Build GOST options
-    GOST_OPTIONS="-L ${LISTEN_TRANSMISSION}://:${listen_port}/127.0.0.1:${config_port}?keepAlive=true"
-    GOST_OPTIONS+=" -F socks5${TRANSMISSION}://${socks5_ip}:${socks5_port}"
+            read -p $'\033[1;33mEnter your choice [tcp]: \033[0m' trans_choice
+            case $trans_choice in
+                1) TRANSMISSION="+ws" ;;
+                2) TRANSMISSION="+wss" ;;
+                3) TRANSMISSION="+grpc" ;;
+                4) TRANSMISSION="+h2" ;;
+                5) TRANSMISSION="+ssh" ;;
+                6) TRANSMISSION="+tls" ;;
+                7) TRANSMISSION="+mwss" ;;
+                8) TRANSMISSION="+h2c" ;;
+                9) TRANSMISSION="+obfs4" ;;
+                10) TRANSMISSION="+ohttp" ;;
+                11) TRANSMISSION="+otls" ;;
+                12) TRANSMISSION="+mtls" ;;
+                13) TRANSMISSION="+mws" ;;
+                14) TRANSMISSION="+icmp" ;;
+                15) TRANSMISSION="" ;;
+                16) TRANSMISSION="+tcp" ;;
+                *) echo -e "\033[1;31mInvalid choice! Defaulting to TCP.\033[0m"; TRANSMISSION="+tcp" ;;
+            esac
 
-    echo -e "\033[1;32mGenerated GOST options:\033[0m $GOST_OPTIONS"
+            # Ask about connection stability for server side
+            echo -e "\n\033[1;34m🔧 Connection Stability Settings\033[0m"
+            echo -e "Do you want to configure connection stability options?"
+            echo -e "\033[1;32m1.\033[0m Yes - Configure advanced options"
+            echo -e "\033[1;32m2.\033[0m No - Use default settings"
+            read -p $'\033[1;33mEnter your choice (default: 2): \033[0m' stability_choice
+            stability_choice=${stability_choice:-2}
+            
+            # Set default values
+            TIMEOUT_VALUE="30s"
+            RWTIMEOUT_VALUE="30s"
+            RETRY_VALUE="3"
+            HEARTBEAT_VALUE="30s"
+            
+            # If user wants advanced options
+            if [[ "$stability_choice" == "1" ]]; then
+                echo -e "\n\033[1;34m⚡ Advanced Stability Options\033[0m"
+                
+                # Connection Timeout
+                read -p $'\033[1;33mEnter connection timeout in seconds (default: 30): \033[0m' custom_timeout
+                custom_timeout=${custom_timeout:-30}
+                TIMEOUT_VALUE="${custom_timeout}s"
+                
+                # Read/Write Timeout
+                read -p $'\033[1;33mEnter read/write timeout in seconds (default: 30): \033[0m' custom_rwtimeout
+                custom_rwtimeout=${custom_rwtimeout:-30}
+                RWTIMEOUT_VALUE="${custom_rwtimeout}s"
+                
+                # Retry attempts
+                echo -e "\n\033[1;34mRetry Attempts:\033[0m"
+                echo -e "\033[1;32m1.\033[0m 0 (No retry)"
+                echo -e "\033[1;32m2.\033[0m 3 (Default)"
+                echo -e "\033[1;32m3.\033[0m 5 (High retry)"
+                echo -e "\033[1;32m4.\033[0m -1 (Infinite retry)"
+                read -p $'\033[1;33mEnter your choice [1-4] (default: 2): \033[0m' retry_choice
+                retry_choice=${retry_choice:-2}
+                
+                case $retry_choice in
+                    1) RETRY_VALUE="0" ;;
+                    2) RETRY_VALUE="3" ;;
+                    3) RETRY_VALUE="5" ;;
+                    4) RETRY_VALUE="-1" ;;
+                    *) RETRY_VALUE="3" ;;
+                esac
+                
+                # Heartbeat interval
+                read -p $'\033[1;33mEnter heartbeat interval in seconds (default: 30): \033[0m' custom_heartbeat
+                custom_heartbeat=${custom_heartbeat:-30}
+                HEARTBEAT_VALUE="${custom_heartbeat}s"
+                
+                echo -e "\n\033[1;32m✅ Stability Settings:\033[0m"
+                echo -e "   • Timeout: $TIMEOUT_VALUE"
+                echo -e "   • Read/Write Timeout: $RWTIMEOUT_VALUE"
+                echo -e "   • Retries: $RETRY_VALUE"
+                echo -e "   • Heartbeat: $HEARTBEAT_VALUE"
+            fi
 
-    # Prompt for custom service name
-    read -p "Enter a custom name for this service (leave blank for a random name): " service_name
-    [[ -z "$service_name" ]] && service_name=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 6)
+            # Ask about compression for socks5 side
+            echo -e "\n\033[1;34mEnable Compression for socks5?\033[0m"
+            echo -e "\033[1;32m1.\033[0m Yes (Recommended for better performance)"
+            echo -e "\033[1;32m2.\033[0m No"
+            read -p $'\033[1;33mEnter your choice (default: 1): \033[0m' compress_choice
+            compress_choice=${compress_choice:-1}
+            
+            # Ask about multiplexing for socks5 side
+            echo -e "\n\033[1;34mEnable Multiplexing (mux) for socks5?\033[0m"
+            echo -e "\033[1;32m1.\033[0m Yes (Recommended for multiple connections)"
+            echo -e "\033[1;32m2.\033[0m No"
+            read -p $'\033[1;33mEnter your choice (default: 1): \033[0m' mux_choice
+            mux_choice=${mux_choice:-1}
 
-    echo -e "\033[1;32mCreating Gost service for ${service_name}...\033[0m"
-    create_gost_service "$service_name"
-    start_service "$service_name"
+            # Construct GOST options for listen side (first -L)
+            LISTEN_OPTIONS="${LISTEN_TRANSMISSION}://:${listen_port}/127.0.0.1:${config_port}"
+            
+            # Construct GOST options for forward side (second -F)
+            FORWARD_OPTIONS="socks5${TRANSMISSION}://${socks5_ip}:${socks5_port}"
+            
+            # Build parameters for forward side
+            FORWARD_PARAMS="timeout=${TIMEOUT_VALUE}"
+            FORWARD_PARAMS+="&rwTimeout=${RWTIMEOUT_VALUE}"
+            FORWARD_PARAMS+="&retries=${RETRY_VALUE}"
+            FORWARD_PARAMS+="&heartbeat=${HEARTBEAT_VALUE}"
+            
+            if [[ "$compress_choice" == "1" ]]; then
+                FORWARD_PARAMS+="&compress=true"
+            fi
+            
+            if [[ "$mux_choice" == "1" ]]; then
+                FORWARD_PARAMS+="&mux=true"
+            fi
+            
+            # Combine all options
+            GOST_OPTIONS="-L $LISTEN_OPTIONS -F $FORWARD_OPTIONS?$FORWARD_PARAMS"
 
-    read -p "Press Enter to continue..."
-    ;;
+            echo -e "\033[1;32mGenerated GOST options:\033[0m $GOST_OPTIONS"
+            echo -e "\033[1;32mUsing GOST core:\033[0m $core_name"
 
+            # Prompt for custom service name
+            read -p "Enter a custom name for this service (leave blank for a random name): " service_name
+            [[ -z "$service_name" ]] && service_name="socks5_server_$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 6)"
+
+            echo -e "\033[1;32mCreating Gost service for ${service_name}...\033[0m"
+            create_gost_service "$service_name" "$GOST_BINARY"
+            start_service "$service_name"
+
+            read -p "Press Enter to continue..."
+            ;;
         
         *)
             echo -e "\033[1;31mInvalid choice! Exiting.\033[0m"
@@ -463,10 +936,14 @@ is_port_used() {
         return 1  # Port is not in use
     fi
 }
+
 # Function to create a service for Gost (port forwarding or relay mode)
 create_gost_service() {
     local service_name=$1
+    local gost_binary="${2:-/usr/local/bin/gost}"  # Use custom binary if provided, else default
+    
     echo -e "\033[1;34mCreating Gost service for $service_name...\033[0m"
+    echo -e "\033[1;36mUsing binary: $gost_binary\033[0m"
 
     # Create the systemd service file
     cat <<EOF > /etc/systemd/system/gost-${service_name}.service
@@ -476,7 +953,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/gost ${GOST_OPTIONS}
+ExecStart=$gost_binary ${GOST_OPTIONS}
 Environment="GOST_LOGGER_LEVEL=fatal"
 StandardOutput=null
 StandardError=null
@@ -513,7 +990,6 @@ start_service() {
     sleep 1
 }
 
-
 # **Function to Select a Service to Manage**
 select_service_to_manage() {
     # Get a list of all GOST service files in /etc/systemd/system/ directory
@@ -538,7 +1014,6 @@ select_service_to_manage() {
     done
 }
 
-
 # **Function to Perform Actions (start, stop, restart, etc.) on Selected Service**
 manage_service_action() {
     local service_name=$1
@@ -555,6 +1030,7 @@ manage_service_action() {
         echo -e " \033[1;34m5.\033[0m Remove the Service"
         echo -e " \033[1;34m6.\033[0m Edit the Service with nano"
         echo -e " \033[1;34m7.\033[0m Auto Restart Service (Cron)"
+        echo -e " \033[1;34m8.\033[0m Rename the Service"
         echo -e " \033[1;31m0.\033[0m Return"
         echo -e "\033[1;34m==============================\033[0m"
 
@@ -609,7 +1085,6 @@ manage_service_action() {
                 fi
             
                 read -p "Press Enter to continue..."
-
                 ;;
 7)
     echo -e "\n\033[1;34mManage Service Cron Jobs:\033[0m"
@@ -689,7 +1164,102 @@ manage_service_action() {
     read -p "Press Enter to continue..."
     ;;
 
-
+            8)
+                # Rename the Service feature
+                echo -e "\n\033[1;34mRename Service:\033[0m"
+                
+                # Get current service information
+                service_file="/etc/systemd/system/$service_name"
+                
+                if [[ ! -f "$service_file" ]]; then
+                    echo -e "\033[1;31mError: Service file not found!\033[0m"
+                    read -p "Press Enter to continue..."
+                    continue
+                fi
+                
+                # Show current name
+                echo -e "Current service name: \033[1;36m$service_name\033[0m"
+                
+                # Ask for new name with validation
+                while true; do
+                    read -p $'\033[1;33mEnter new service name (must start with "gost-"): \033[0m' new_name
+                    
+                    # Validate the new name
+                    if [[ -z "$new_name" ]]; then
+                        echo -e "\033[1;31mService name cannot be empty!\033[0m"
+                        continue
+                    fi
+                    
+                    # Check if name starts with "gost-"
+                    if [[ ! "$new_name" =~ ^gost- ]]; then
+                        echo -e "\033[1;31mService name must start with 'gost-' prefix!\033[0m"
+                        echo -e "Example: gost-de-aeza-4540.service"
+                        continue
+                    fi
+                    
+                    # Check if name contains .service extension
+                    if [[ ! "$new_name" =~ \.service$ ]]; then
+                        new_name="$new_name.service"
+                    fi
+                    
+                    # Check if new name already exists
+                    if [[ -f "/etc/systemd/system/$new_name" ]]; then
+                        echo -e "\033[1;31mA service with name '$new_name' already exists!\033[0m"
+                        continue
+                    fi
+                    
+                    # Confirm the rename
+                    echo -e "\n\033[1;33mRenaming:\033[0m"
+                    echo -e "From: \033[1;31m$service_name\033[0m"
+                    echo -e "To:   \033[1;32m$new_name\033[0m"
+                    
+                    read -p $'\033[1;33mAre you sure you want to rename? [y/n] (default: n): \033[0m' confirm_rename
+                    confirm_rename="${confirm_rename:-n}"
+                    
+                    if [[ "$confirm_rename" != "y" && "$confirm_rename" != "yes" ]]; then
+                        echo -e "\033[1;33mRename cancelled.\033[0m"
+                        break
+                    fi
+                    
+                    # Stop the service first
+                    systemctl stop "$service_name" 2>/dev/null
+                    
+                    # Rename the service file
+                    mv "$service_file" "/etc/systemd/system/$new_name"
+                    
+                    # Update service references in the file
+                    sed -i "s/Description=Gost Service.*/Description=Gost Service - ${new_name%.service}/" "/etc/systemd/system/$new_name"
+                    
+                    # Reload systemd
+                    systemctl daemon-reload
+                    
+                    # Disable old service and enable new one
+                    systemctl disable "$service_name" 2>/dev/null
+                    systemctl enable "$new_name" 2>/dev/null
+                    
+                    # Update any cron jobs
+                    if crontab -l 2>/dev/null | grep -q "/bin/systemctl restart $service_name"; then
+                        (crontab -l 2>/dev/null | sed "s|/bin/systemctl restart $service_name|/bin/systemctl restart $new_name|g") | crontab -
+                    fi
+                    
+                    # Update the service_name variable for the current session
+                    service_name="$new_name"
+                    
+                    echo -e "\n\033[1;32m✓ Service renamed successfully!\033[0m"
+                    echo -e "\033[1;36mNew service name: $service_name\033[0m"
+                    
+                    # Ask if user wants to start the service
+                    read -p $'\033[1;33mDo you want to start the renamed service? [y/n] (default: y): \033[0m' start_choice
+                    start_choice="${start_choice:-y}"
+                    
+                    if [[ "$start_choice" == "y" || "$start_choice" == "yes" ]]; then
+                        systemctl start "$service_name" && echo -e "\033[1;32mService $service_name started.\033[0m"
+                    fi
+                    
+                    break
+                done
+                read -p "Press Enter to continue..."
+                ;;
 
             0)
                 break
@@ -906,19 +1476,42 @@ fi
     read -p "Press Enter to continue..."
 }
 
-
 # Remove GOST
 remove_gost() {
     check_root
-    if [[ -f "/usr/local/bin/gost" ]]; then
-        echo "Removing GOST..."
-        rm -f /usr/local/bin/gost
-        echo "GOST removed successfully!"
-    else
-        echo "GOST is not installed!"
+    echo -e "\033[1;31m⚠ Warning: This will remove ALL GOST binaries and services!\033[0m"
+    read -p $'\033[1;33mAre you sure you want to remove GOST? [y/n] (default: n): \033[0m' confirm_remove
+    confirm_remove="${confirm_remove:-n}"
+    
+    if [[ "$confirm_remove" != "y" && "$confirm_remove" != "yes" ]]; then
+        echo -e "\033[1;33mGOST removal cancelled.\033[0m"
+        read -p "Press Enter to continue..."
+        return
     fi
+    
+    # Remove all GOST binaries
+    echo "Removing GOST binaries..."
+    rm -f /usr/local/bin/gost*
+    rm -f /usr/bin/gost*
+    
+    # Remove all GOST services
+    echo "Removing GOST services..."
+    for service_file in /etc/systemd/system/gost*.service; do
+        if [[ -f "$service_file" ]]; then
+            service_name=$(basename "$service_file")
+            systemctl stop "$service_name" 2>/dev/null
+            systemctl disable "$service_name" 2>/dev/null
+            rm -f "$service_file"
+        fi
+    done
+    
+    # Reload systemd
+    systemctl daemon-reload
+    
+    echo -e "\033[1;32m✓ GOST and all related files removed successfully!\033[0m"
     read -p "Press Enter to continue..."
 }
+
 # Start the main menu
 check_and_install_gost
 
